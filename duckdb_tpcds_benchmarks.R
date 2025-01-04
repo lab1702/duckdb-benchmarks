@@ -6,7 +6,13 @@ library(duckdb)
 con <- dbConnect(duckdb())
 
 # Install TPC-DS extension and generate test data
-dbExecute(con, "INSTALL tpcds; LOAD tpcds; CALL dsdgen(sf = 20);")
+dbExecute(con, "INSTALL tpcds; LOAD tpcds;")
+
+# Generate test data
+setup_timing <- system.time(
+  dbExecute(con, "CALL dsdgen(sf = 30);"),
+  gcFirst = TRUE
+)
 
 # Check memory usage
 db_size <- dbGetQuery(con, "PRAGMA database_size;")
@@ -16,7 +22,10 @@ tpcds_timings <- lapply(
   1:99,
   function(i) {
     message("Running ", i)
-    system.time(dbExecute(con, paste0("PRAGMA tpcds(", i, ");")))
+    system.time(
+      dbExecute(con, paste0("PRAGMA tpcds(", i, ");")),
+      gcFirst = TRUE
+    )
   }
 )
 
@@ -30,6 +39,15 @@ tpcds_df <- bind_rows(tpcds_timings, .id = "step")
 db_size
 
 # Summarize times
+bind_rows(setup_timing) |>
+  summarise(
+    sum.user.self = sum(user.self),
+    sum.sys.self = sum(sys.self),
+    sum.cpu.time = sum.user.self + sum.sys.self,
+    sum.elapsed = sum(elapsed),
+    cpu.per.elapsed = sum.cpu.time / sum.elapsed
+  )
+
 tpcds_df |>
   summarise(
     sum.user.self = sum(user.self),
@@ -38,3 +56,4 @@ tpcds_df |>
     sum.elapsed = sum(elapsed),
     cpu.per.elapsed = sum.cpu.time / sum.elapsed
   )
+

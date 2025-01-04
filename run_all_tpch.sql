@@ -2,7 +2,7 @@
 
 .timer on
 
-CALL dbgen(sf = 20);
+CALL dbgen(sf = 10);
 
 PRAGMA database_size;
 
